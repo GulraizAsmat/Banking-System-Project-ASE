@@ -21,6 +21,8 @@ logging.basicConfig(
 USERS_FILE = "users.csv"
 ACCOUNTS_FILE = "accounts.csv"
 TRANSACTIONS_FILE = "transactions.csv"
+RECURRING_FILE = "recurring.csv"
+SERVICES_FILE = "services.csv"
 
 
 # Helper functions for CSV operations
@@ -86,6 +88,11 @@ accounts_df = load_data(
     ACCOUNTS_FILE, ["Account Number", "Name", "Account Type", "Balance"]
 )
 transactions_df = load_data(TRANSACTIONS_FILE, ["Date", "Type", "From", "To", "Amount"])
+recurring_df = load_data(
+    RECURRING_FILE,
+    ["Account Number", "Payment Type", "Amount", "Frequency", "Next Due"],
+)
+services_df = load_data(SERVICES_FILE, ["Account Number", "Service Type", "Status"])
 
 
 # Authentication functions
@@ -322,6 +329,43 @@ def transfer_funds():
             )
 
 
+# Setup Recurring Payments
+def setup_recurring_payments():
+    st.subheader("Setup and Manage Recurring Payments")
+    account_number = st.number_input("Enter Your Account Number", format="%.2f")
+    payment_type = st.text_input("Payment Description")
+    amount = st.number_input("Payment Amount", min_value=0.01, step=0.01, format="%.2f")
+    frequency = st.selectbox("Select Frequency", ["Monthly", "Quarterly", "Annually"])
+    next_due = st.date_input("Next Due Date")
+    if st.button("Setup Payment"):
+        recurring_df.loc[len(recurring_df) + 1] = [
+            account_number,
+            payment_type,
+            amount,
+            frequency,
+            next_due,
+        ]
+        save_data(recurring_df, RECURRING_FILE)
+        st.success("Recurring payment setup successfully!")
+
+
+# Manage Services
+def manage_services():
+    st.subheader("Request and Manage Services")
+    account_number = st.number_input("Enter Your Account Number", format="%.2f")
+    service_type = st.selectbox(
+        "Select Service", ["Checkbook", "Debit Card", "Credit Card"]
+    )
+    if st.button("Request Service"):
+        services_df.loc[len(services_df) + 1] = [
+            account_number,
+            service_type,
+            "Requested",
+        ]
+        save_data(services_df, SERVICES_FILE)
+        st.success(f"{service_type} requested successfully!")
+
+
 # Main function to run the Streamlit app
 def main():
     st.title("Advanced Banking Application")
@@ -340,6 +384,8 @@ def main():
             "Deposit Cash",
             "Withdraw Cash",
             "Transfer Funds",
+            "Setup Recurring Payments",
+            "Manage Services",
         ]
         choice = st.sidebar.selectbox("Select Option", menu)
         if choice == "Create Account":
@@ -356,6 +402,10 @@ def main():
             withdraw_cash()
         elif choice == "Transfer Funds":
             transfer_funds()
+        elif choice == "Setup Recurring Payments":
+            setup_recurring_payments()
+        elif choice == "Manage Services":
+            manage_services()
 
 
 if __name__ == "__main__":
