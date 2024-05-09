@@ -19,6 +19,7 @@ logging.basicConfig(
 
 # Define paths for CSV files
 USERS_FILE = "users.csv"
+ACCOUNTS_FILE = "accounts.csv"
 
 
 # Helper functions for CSV operations
@@ -80,6 +81,9 @@ def check_password(stored_password, provided_password):
 
 # Load dataframes
 users_df = load_data(USERS_FILE, ["Username", "Password"])
+accounts_df = load_data(
+    ACCOUNTS_FILE, ["Account Number", "Name", "Account Type", "Balance"]
+)
 
 
 # Authentication functions
@@ -152,6 +156,109 @@ def main():
             show_login()
         elif auth_choice == "Register":
             show_registration()
+
+
+# Create Account
+def create_account():
+    st.subheader("Create New Account")
+    name = st.text_input("Enter Your Name", key="new_name")
+    account_type = st.radio(
+        "Select Account Type", ("Personal", "Business"), key="new_type"
+    )
+    balance = st.number_input(
+        "Initial Balance", value=0.0, step=0.01, format="%.2f", key="new_balance"
+    )
+    if st.button("Create Account"):
+        if not name:  # Check if name field is empty
+            st.error("Please enter your name.")
+        elif balance < 0:  # Check if balance is negative
+            st.error("Initial balance cannot be negative.")
+        else:
+            new_account_number = len(accounts_df) + 1
+            accounts_df.loc[new_account_number] = [
+                new_account_number,
+                name,
+                account_type,
+                balance,
+            ]
+            save_data(accounts_df, ACCOUNTS_FILE)
+            st.success(
+                f"Account created successfully! Account Number: {new_account_number}"
+            )
+
+
+## View Account Information
+def view_account_info():
+    st.subheader("View Account Information")
+    account_number = st.number_input("Enter Account Number", format="%.2f")
+    if st.button("View Info") and account_number:
+        if account_number in accounts_df.index:
+            account_info = accounts_df.loc[account_number]
+            st.write("**Account Number:**", account_info["Account Number"])
+            st.write("**Name:**", account_info["Name"])
+            st.write("**Account Type:**", account_info["Account Type"])
+            st.write("**Balance:**", account_info["Balance"])
+            logging.info(f"Viewed account info for {account_number}.")
+        else:
+            st.error("Account not found!")
+            logging.warning(f"Attempted to view non-existing account {account_number}.")
+
+
+# Edit Account Details
+def edit_account_details():
+    st.subheader("Edit Account Details")
+    account_number = st.number_input("Enter Account Number to Edit", format="%.2f")
+    if account_number in accounts_df.index:
+        with st.form("Edit Form"):
+            name = st.text_input("Name", value=accounts_df.at[account_number, "Name"])
+            account_type = st.radio("Account Type", ("Personal", "Business"))
+            submit = st.form_submit_button("Save Changes")
+            if submit:
+                accounts_df.at[account_number, "Name"] = name
+                accounts_df.at[account_number, "Account Type"] = account_type
+                save_data(accounts_df, ACCOUNTS_FILE)
+                st.success("Account updated successfully!")
+
+
+# Close Account
+def close_account():
+    global accounts_df
+    st.subheader("Close Account")
+    account_number = st.number_input("Enter Account Number to Close", format="%.2f")
+    if st.button("Close Account"):
+        if account_number in accounts_df.index:
+            accounts_df = accounts_df.drop(account_number)
+            save_data(accounts_df, ACCOUNTS_FILE)
+            st.success("Account closed successfully!")
+        else:
+            st.error("Account not found!")
+
+
+# Main function to run the Streamlit app
+def main():
+    st.title("Advanced Banking Application")
+    if "logged_in" not in st.session_state:
+        auth_choice = st.sidebar.selectbox("Authentication", ["Login", "Register"])
+        if auth_choice == "Login":
+            show_login()
+        elif auth_choice == "Register":
+            show_registration()
+    else:
+        menu = [
+            "Create Account",
+            "View Account Information",
+            "Edit Account Details",
+            "Close Account",
+        ]
+        choice = st.sidebar.selectbox("Select Option", menu)
+        if choice == "Create Account":
+            create_account()
+        elif choice == "View Account Information":
+            view_account_info()
+        elif choice == "Edit Account Details":
+            edit_account_details()
+        elif choice == "Close Account":
+            close_account()
 
 
 if __name__ == "__main__":
