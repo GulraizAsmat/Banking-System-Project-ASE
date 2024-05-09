@@ -20,6 +20,7 @@ logging.basicConfig(
 # Define paths for CSV files
 USERS_FILE = "users.csv"
 ACCOUNTS_FILE = "accounts.csv"
+TRANSACTIONS_FILE = "transactions.csv"
 
 
 # Helper functions for CSV operations
@@ -84,6 +85,7 @@ users_df = load_data(USERS_FILE, ["Username", "Password"])
 accounts_df = load_data(
     ACCOUNTS_FILE, ["Account Number", "Name", "Account Type", "Balance"]
 )
+transactions_df = load_data(TRANSACTIONS_FILE, ["Date", "Type", "From", "To", "Amount"])
 
 
 # Authentication functions
@@ -234,6 +236,92 @@ def close_account():
             st.error("Account not found!")
 
 
+# Deposit Cash
+def deposit_cash():
+    st.subheader("Deposit Cash")
+    account_number = st.number_input("Enter Account Number", format="%.2f")
+    amount = st.number_input("Enter Amount", step=0.01, format="%.2f")
+    if st.button("Deposit") and account_number and amount > 0:
+        if account_number in accounts_df.index:
+            accounts_df.loc[account_number, "Balance"] += amount
+            transaction_record = {
+                "Date": datetime.now().isoformat(),
+                "Type": "Deposit",
+                "From": None,
+                "To": account_number,
+                "Amount": amount,
+            }
+            transactions_df.loc[len(transactions_df) + 1] = transaction_record
+            save_data(accounts_df, ACCOUNTS_FILE)
+            save_data(transactions_df, TRANSACTIONS_FILE)
+            st.success("Deposit successful!")
+            logging.info(f"Deposit of {amount} to account {account_number}.")
+
+
+# Withdraw Cash
+def withdraw_cash():
+    st.subheader("Withdraw Cash")
+    account_number = st.number_input("Enter Account Number", format="%.2f")
+    amount = st.number_input("Enter Amount", step=0.01, format="%.2f")
+    if st.button("Withdraw") and account_number and amount > 0:
+        if (
+            account_number in accounts_df.index
+            and accounts_df.loc[account_number, "Balance"] >= amount
+        ):
+            accounts_df.loc[account_number, "Balance"] -= amount
+            transaction_record = {
+                "Date": datetime.now().isoformat(),
+                "Type": "Withdrawal",
+                "From": account_number,
+                "To": None,
+                "Amount": amount,
+            }
+            transactions_df.loc[len(transactions_df) + 1] = transaction_record
+            save_data(accounts_df, ACCOUNTS_FILE)
+            save_data(transactions_df, TRANSACTIONS_FILE)
+            st.success("Withdrawal successful!")
+            logging.info(f"Withdrawal of {amount} from account {account_number}.")
+
+
+# Transfer Funds
+def transfer_funds():
+    st.subheader("Transfer Funds")
+    from_account = st.number_input(
+        "Enter Account Number to Transfer From", format="%.2f"
+    )
+    to_account = st.number_input("Enter Account Number to Transfer To", format="%.2f")
+    amount = st.number_input("Enter Amount", step=0.01, format="%.2f")
+    if st.button("Transfer") and from_account and to_account and amount > 0:
+        if from_account in accounts_df.index and to_account in accounts_df.index:
+            if accounts_df.loc[from_account, "Balance"] >= amount:
+                accounts_df.loc[from_account, "Balance"] -= amount
+                accounts_df.loc[to_account, "Balance"] += amount
+                transaction_record = {
+                    "Date": datetime.now().isoformat(),
+                    "Type": "Transfer",
+                    "From": from_account,
+                    "To": to_account,
+                    "Amount": amount,
+                }
+                transactions_df.loc[len(transactions_df) + 1] = transaction_record
+                save_data(accounts_df, ACCOUNTS_FILE)
+                save_data(transactions_df, TRANSACTIONS_FILE)
+                st.success("Transfer successful!")
+                logging.info(
+                    f"Transfer of {amount} from {from_account} to {to_account}."
+                )
+            else:
+                st.error("Insufficient balance!")
+                logging.warning(
+                    f"Failed transfer of {amount} from {from_account} to {to_account} due to insufficient balance."
+                )
+        else:
+            st.error("One or both accounts not found!")
+            logging.warning(
+                f"Transfer attempt failed from {from_account} to {to_account}: One or both accounts not found."
+            )
+
+
 # Main function to run the Streamlit app
 def main():
     st.title("Advanced Banking Application")
@@ -249,6 +337,9 @@ def main():
             "View Account Information",
             "Edit Account Details",
             "Close Account",
+            "Deposit Cash",
+            "Withdraw Cash",
+            "Transfer Funds",
         ]
         choice = st.sidebar.selectbox("Select Option", menu)
         if choice == "Create Account":
@@ -259,6 +350,12 @@ def main():
             edit_account_details()
         elif choice == "Close Account":
             close_account()
+        elif choice == "Deposit Cash":
+            deposit_cash()
+        elif choice == "Withdraw Cash":
+            withdraw_cash()
+        elif choice == "Transfer Funds":
+            transfer_funds()
 
 
 if __name__ == "__main__":
